@@ -60,17 +60,11 @@ app.use((req, res) => {
     res.status(404).send("Page Not Found");
 });
 
-// storeEmp()
-//     .then(storeDep)
-//     .catch(function(rejectMsg){
-//         // catch any errors here
-//         console.log(rejectMsg);
-//     });
 
-    // dataService.initialize().then((data)=>{
-    //     app.listen(HTTP_PORT, onHttpStart);
-    // }).catch((err)=>{
-    //     res.send(err);    
-    // });
-dataService.initialize();
-app.listen(HTTP_PORT, onHttpStart);
+dataService.initialize()
+.then(function(){
+    app.listen(HTTP_PORT, onHttpStart);
+})
+.catch((err)=>{
+    res.send(err);    
+});
