@@ -187,3 +187,22 @@ module.exports.getEmployeeByNum = function(num){
         }
     })
 }
+
+module.exports.updateEmployee = function(employeeData){
+    return new Promise((resolve,reject)=>{
+        if (employees.length == 0) {
+            reject("no results returned");
+        }
+        else
+        {
+            for(let i=0; i<employees.length; i++)
+            {
+                if(employees[i].employeeNum==employeeData.employeeNum)
+                {
+                    employees[i]=employeeData;
+                    resolve();
+                }
+            }
+        }
+    })
+}

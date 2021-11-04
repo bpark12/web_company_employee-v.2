@@ -1,20 +1,21 @@
 /*********************************************************************************
-* WEB322 – Assignment 02
+* WEB322 – Assignment 04
 * I declare that this assignment is my own work in accordance with Seneca Academic Policy. No part
 * of this assignment has been copied manually or electronically from any other source
 * (including 3rd party web sites) or distributed to other students.
 *
-* Name: Boae Park      Student ID: 075194100    Date: oct 10, 2021
+* Name: Boae Park      Student ID: 075194100    Date: Nov 3, 2021
 *
 * Online (Heroku) Link: https://desolate-chamber-07691.herokuapp.com/
 *
 ********************************************************************************/
 
 var express=require("express");
-var app=express();
+const exphbs = require('express-handlebars')
 const fs = require("fs");
 const multer = require("multer");
 var path=require("path");
+var app=express();
 
 const dataService = require('./data-service.js');
 
@@ -33,20 +34,48 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
+app.engine('.hbs', exphbs({ 
+    extname: '.hbs', 
+    defaultLayout: 'main',
+    helpers: { 
+        navLink: function(url, options){
+            return '<li' +
+            ((url == app.locals.activeRoute) ? ' class="active" ' : '') +
+            '><a href="' + url + '">' + options.fn(this) + '</a></li>';
+        },
+        equal: function (lvalue, rvalue, options) {
+            if (arguments.length < 3)
+                throw new Error("Handlebars Helper equal needs 2 parameters");
+            if (lvalue != rvalue) {
+                return options.inverse(this);
+            } else {
+                return options.fn(this);
+            }
+        }
+    }
+}));
+app.set('view engine', '.hbs');
+
 app.use(express.urlencoded({ extended: true }));
 
 app.use(express.static("./public"));
 
+app.use(function(req, res,next){
+    let route = req.baseUrl + req.path;
+    app.locals.activeRoute = (route == "/") ? "/" : route.replace(/\/$/, "");
+    next();
+    });
+
 app.get("/", (req,res)=>{
-    res.sendFile(path.join(__dirname,"/views/home.html"));
+    res.render("home")
 });
 
 app.get("/about", (req,res)=>{
-    res.sendFile(path.join(__dirname,"/views/about.html"));
+    res.render("about")
 });
 
 app.get("/employees/add", (req,res)=>{
-    res.sendFile(path.join(__dirname,"/views/addEmployee.html"));
+    res.render("addEmployee")
 });
 
 app.post("/employees/add",  (req, res) => {
@@ -60,7 +89,7 @@ app.post("/employees/add",  (req, res) => {
 
 
 app.get("/images/add", (req,res)=>{
-    res.sendFile(path.join(__dirname,"/views/addImage.html"));
+    res.render("addImage")
 });
 
 app.post("/images/add", upload.single("imageFile"), (req, res) => {
@@ -69,26 +98,31 @@ app.post("/images/add", upload.single("imageFile"), (req, res) => {
 
 app.get("/images", (req,res)=>{
     fs.readdir("./public/images/uploaded", function(err, items) {
-        res.json({"images": items}); 
+        res.render('images',  {images: items}); 
     });
 });
 
 app.get("/employees", (req,res) => {
-    if (req.query.status) {dataService.getEmployeesByStatus(req.query.status).then((data)=>{ res.json(data);}) }
-    if (req.query.department) { dataService.getEmployeesByDepartment(req.query.department).then((data)=>{ res.json(data);})}
-    if (req.query.manager) { dataService.getEmployeesByManager(req.query.manager).then((data)=>{ res.json(data);})}
-    dataService.getAllMembers().then((data)=>{
-        res.json(data); 
-    }).catch((err)=>{
-        res.send(err);
-    });
+    if (req.query.status) {dataService.getEmployeesByStatus(req.query.status).then((data)=>{ res.render("employees",
+    {employees: data});})}
+    else if (req.query.department) { dataService.getEmployeesByDepartment(req.query.department).then((data)=>{ res.render("employees",
+    {employees: data});})}
+    else if (req.query.manager) { dataService.getEmployeesByManager(req.query.manager).then((data)=>{ res.render("employees",
+    {employees: data});})}
+    else{
+        dataService.getAllMembers().then((data)=>{
+            res.render("employees", {employees: data}); 
+        }).catch((err)=>{
+            res.render("employees", {message: "no results"});
+        });
+    }   
 });
 
 app.get("/employee/:value", (req,res) => {
     dataService.getEmployeeByNum(req.params.value).then((data)=>{
-        res.json(data); 
+        res.render("employee", { employee: data });
     }).catch((err)=>{
-        res.send(err);
+        res.render("employee",{message:"no results"});
     });
 });
 
@@ -102,11 +136,21 @@ app.get("/managers", (req,res) => {
 
 app.get("/departments", (req,res) => {
     dataService.getAllDepartments().then((data)=>{
-        res.json(data); 
+        res.render("departments", {departments: data});
     }).catch((err)=>{
         res.send(err);
     });
 });
+
+
+app.post("/employee/update", (req, res) => {
+    dataService.updateEmployee(req.body).then(()=>{
+        res.redirect("/employees");
+    }).catch((err)=>{
+        res.render("employee",{message:"no results"});
+    });
+});
+
 
 app.use((req, res) => {
     res.status(404).send("Page Not Found");
